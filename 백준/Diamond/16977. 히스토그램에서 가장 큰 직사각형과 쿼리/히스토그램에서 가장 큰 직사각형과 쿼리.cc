@@ -1,152 +1,167 @@
 #include <bits/stdc++.h>
 using namespace std;
-using ll = long long;
 
-// 최대 노드 수: build 약 2N, update N·logN → 충분히 감당
-static const int MAXNODE = 3000000;
+struct FastScanner {
+    static inline int gc() { return getchar_unlocked(); }
 
-// 영역 [l..r]에 대해 “1이면 활성, 0이면 비활성”일 때
-// 연속 1의 최대 길이를 관리하는 퍼시스턴트 세그트리 노드
-struct PSTNode {
-    int lch, rch;  // 좌/우 자식 인덱스
-    int len;       // 이 노드가 담당하는 구간 길이
-    int pref;      // 구간 접두사 연속 1 최대 길이
-    int suff;      // 구간 접미사 연속 1 최대 길이
-    int best;      // 구간 내 연속 1 최대 길이
-} pool[MAXNODE];
+    template <typename T>
+    bool readInt(T &out) {
+        int c = gc();
+        while (c != EOF && c <= ' ') c = gc();
+        if (c == EOF) return false;
 
-int poolPtr = 0;
+        T sign = 1;
+        if (c == '-') { sign = -1; c = gc(); }
 
-// [l..r] 범위에 대해 모두 0으로 초기화된 트리 생성
-int build(int l, int r) {
-    int id = poolPtr++;
-    pool[id].len  = r - l + 1;
-    pool[id].pref = pool[id].suff = pool[id].best = 0;
-    if (l == r) {
-        pool[id].lch = pool[id].rch = -1;
-    } else {
-        int m = (l + r) >> 1;
-        pool[id].lch = build(l, m);
-        pool[id].rch = build(m + 1, r);
-    }
-    return id;
-}
-
-// 이전 버전 prev_root에서 pos 위치를 1로 바꾼 새 버전 생성
-int update(int prev_root, int l, int r, int pos) {
-    int id = poolPtr++;
-    // 이전 노드 복사 (len, lch, rch 포함)
-    pool[id] = pool[prev_root];
-    if (l == r) {
-        // 리프: 연속 1 길이 모두 1
-        pool[id].pref = pool[id].suff = pool[id].best = 1;
-    } else {
-        int m = (l + r) >> 1;
-        if (pos <= m) {
-            pool[id].lch = update(pool[prev_root].lch, l, m, pos);
-        } else {
-            pool[id].rch = update(pool[prev_root].rch, m + 1, r, pos);
+        T val = 0;
+        while (c > ' ') {
+            val = val * 10 + (c - '0');
+            c = gc();
         }
-        // 자식 노드 가져오기
-        PSTNode &L = pool[ pool[id].lch ];
-        PSTNode &R = pool[ pool[id].rch ];
-        // 구간 접두사: 왼쪽 구간 전체가 1이면 넘어가고, 아니면 왼쪽 pref
-        pool[id].pref = (L.pref == L.len ? L.len + R.pref : L.pref);
-        // 구간 접미사: 오른쪽 구간 전체가 1이면 넘어가고, 아니면 오른쪽 suff
-        pool[id].suff = (R.suff == R.len ? R.len + L.suff : R.suff);
-        // 구간 내 최댓값: 왼쪽 best, 오른쪽 best, 경계 연결
-        pool[id].best = max({ L.best, R.best, L.suff + R.pref });
+        out = val * sign;
+        return true;
     }
-    return id;
-}
-
-// 쿼리용 노드 (범위 길이 + pref/suff/best)
-struct QNode {
-    int len, pref, suff, best;
-    QNode(int _len=0, int _pref=0, int _suff=0, int _best=0)
-        : len(_len), pref(_pref), suff(_suff), best(_best) {}
 };
 
-// QNode 합치는 함수
-QNode combineQ(const QNode &A, const QNode &B) {
-    QNode C;
-    C.len  = A.len + B.len;
-    C.pref = (A.pref == A.len ? A.len + B.pref : A.pref);
-    C.suff = (B.suff == B.len ? B.len + A.suff : B.suff);
-    C.best = max({ A.best, B.best, A.suff + B.pref });
-    return C;
+struct Node {
+    int len;   // segment length (0 for padding)
+    int pref;  // max prefix ones
+    int suff;  // max suffix ones
+    int best;  // max consecutive ones
+};
+
+static inline Node mergeNode(const Node &L, const Node &R) {
+    if (L.len == 0) return R;
+    if (R.len == 0) return L;
+    Node t;
+    t.len = L.len + R.len;
+    t.pref = (L.pref == L.len) ? (L.len + R.pref) : L.pref;
+    t.suff = (R.suff == R.len) ? (R.len + L.suff) : R.suff;
+    t.best = max({L.best, R.best, L.suff + R.pref});
+    return t;
 }
 
-// 버전 root에서 [ql..qr] 범위에 대한 QNode 반환
-QNode query(int root, int l, int r, int ql, int qr) {
-    if (qr < l || r < ql) return QNode(0, 0, 0, 0);
-    if (ql <= l && r <= qr) {
-        PSTNode &nd = pool[root];
-        return QNode(nd.len, nd.pref, nd.suff, nd.best);
+struct SegTreeRuns {
+    int n, size;
+    vector<Node> seg;
+
+    explicit SegTreeRuns(int n_) : n(n_) {
+        size = 1;
+        while (size < n) size <<= 1;
+        seg.assign(2 * size, Node{0,0,0,0});
+
+        // init lengths
+        for (int i = 0; i < size; i++) {
+            seg[size + i].len = (i < n) ? 1 : 0;
+        }
+        for (int i = size - 1; i >= 1; --i) {
+            seg[i].len = seg[i<<1].len + seg[i<<1|1].len;
+        }
     }
-    int m = (l + r) >> 1;
-    QNode L = query(pool[root].lch, l, m, ql, qr);
-    QNode R = query(pool[root].rch, m + 1, r, ql, qr);
-    return combineQ(L, R);
-}
 
-int main(){
+    void resetAll() {
+        for (int i = 1; i < 2 * size; i++) {
+            seg[i].pref = seg[i].suff = seg[i].best = 0;
+        }
+    }
+
+    void activate(int idx) { // idx: 0-based, set to 1
+        int p = size + idx;
+        seg[p].pref = seg[p].suff = seg[p].best = 1;
+        for (p >>= 1; p >= 1; p >>= 1) {
+            seg[p] = mergeNode(seg[p<<1], seg[p<<1|1]);
+        }
+    }
+
+    Node query(int l, int r) { // inclusive, 0-based
+        Node left{0,0,0,0}, right{0,0,0,0};
+        int L = l + size;
+        int R = r + size + 1; // exclusive
+        while (L < R) {
+            if (L & 1) left = mergeNode(left, seg[L++]);
+            if (R & 1) right = mergeNode(seg[--R], right);
+            L >>= 1; R >>= 1;
+        }
+        return mergeNode(left, right);
+    }
+};
+
+int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
+    FastScanner fs;
+
     int N;
-    cin >> N;
-    vector<ll> H(N+1);
-    for (int i = 1; i <= N; i++) {
-        cin >> H[i];
-    }
+    fs.readInt(N);
+    vector<long long> h(N);
+    for (int i = 0; i < N; i++) fs.readInt(h[i]);
 
-    // 고유한 높이들 내림차순 정렬
-    vector<ll> vh(H.begin()+1, H.end());
-    sort(vh.begin(), vh.end());
-    vh.erase(unique(vh.begin(), vh.end()), vh.end());
-    sort(vh.begin(), vh.end(), greater<ll>());
-    int M = vh.size();
+    // unique heights ascending
+    vector<long long> vals = h;
+    sort(vals.begin(), vals.end());
+    vals.erase(unique(vals.begin(), vals.end()), vals.end());
+    int Mv = (int)vals.size();
 
-    // 각 높이에 해당하는 인덱스들 모으기
-    vector<vector<int>> pos(M);
-    for (int i = 1; i <= N; i++) {
-        int k = lower_bound(vh.begin(), vh.end(), H[i], greater<ll>()) - vh.begin();
-        pos[k].push_back(i);
-    }
-
-    // 빈 버전 생성
-    vector<int> roots(M+1);
-    roots[0] = build(1, N);
-    // 차례로 “높이 ≥ vh[k-1]”인 바를 1로 세팅
-    for (int k = 1; k <= M; k++) {
-        int curr = roots[k-1];
-        for (int idx : pos[k-1]) {
-            curr = update(curr, 1, N, idx);
-        }
-        roots[k] = curr;
-    }
+    // bars sorted by height desc
+    vector<pair<long long,int>> bars;
+    bars.reserve(N);
+    for (int i = 0; i < N; i++) bars.push_back({h[i], i});
+    sort(bars.begin(), bars.end(), [](auto &a, auto &b){
+        if (a.first != b.first) return a.first > b.first;
+        return a.second < b.second;
+    });
 
     int Q;
-    cin >> Q;
-    while (Q--) {
+    fs.readInt(Q);
+    vector<int> L(Q), R(Q), W(Q);
+    for (int i = 0; i < Q; i++) {
         int l, r, w;
-        cin >> l >> r >> w;
-        // 내림차순 vh를 기준으로 이분 탐색: 
-        // 첫 버전 mid에서 가장 긴 연속 1 길이 ≥ w인 최소 mid 찾기
-        int lo = 1, hi = M, ans = M;
-        while (lo <= hi) {
-            int mid = (lo + hi) >> 1;
-            QNode res = query(roots[mid], 1, N, l, r);
-            if (res.best >= w) {
-                ans = mid;
-                hi = mid - 1;
-            } else {
-                lo = mid + 1;
+        fs.readInt(l); fs.readInt(r); fs.readInt(w);
+        --l; --r;
+        L[i] = l; R[i] = r; W[i] = w;
+    }
+
+    vector<int> lo(Q, 0), hi(Q, Mv - 1);
+
+    vector<vector<int>> bucket(Mv);
+    SegTreeRuns seg(N);
+
+    while (true) {
+        bool any = false;
+        for (int i = 0; i < Q; i++) {
+            if (lo[i] < hi[i]) {
+                int mid = (lo[i] + hi[i] + 1) >> 1;
+                bucket[mid].push_back(i);
+                any = true;
             }
         }
-        // 출력: vh[ans-1]가 최대가 되는 최소 높이
-        cout << vh[ans-1] << "\n";
+        if (!any) break;
+
+        seg.resetAll();
+        int p = 0; // pointer in bars
+
+        // process mids from high to low (higher height -> fewer active)
+        for (int mid = Mv - 1; mid >= 0; --mid) {
+            if (bucket[mid].empty()) continue;
+
+            long long thr = vals[mid];
+            while (p < N && bars[p].first >= thr) {
+                seg.activate(bars[p].second);
+                p++;
+            }
+
+            for (int qi : bucket[mid]) {
+                Node res = seg.query(L[qi], R[qi]);
+                if (res.best >= W[qi]) lo[qi] = mid;
+                else hi[qi] = mid - 1;
+            }
+            bucket[mid].clear();
+        }
+    }
+
+    for (int i = 0; i < Q; i++) {
+        cout << vals[lo[i]] << "\n";
     }
     return 0;
 }
