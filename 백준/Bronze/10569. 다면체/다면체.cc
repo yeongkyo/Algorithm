@@ -1,11 +1,16 @@
-#include <iostream>
+#include <bits/stdc++.h>
 using namespace std;
-int v, e, t, ans;
+
 int main() {
-    cin >> t;
-    while (t--)
-    {
-        cin >> v >> e;
-        cout << 2 - v + e << '\n';
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int T;
+    cin >> T;
+    while (T--) {
+        int V, E;
+        cin >> V >> E;
+        cout << (E - V + 2) << "\n";
     }
+    return 0;
 }
