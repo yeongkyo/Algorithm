@@ -1,22 +1,26 @@
-#include<stdio.h>
-#include<algorithm>
+#include <bits/stdc++.h>
 using namespace std;
-int dp[100001];
-int num[100001];
-int main() {
-	int n;
-	scanf("%d", &n);
-	for (int i = 0; i < n; i++) {
-		scanf("%d", &num[i]);
-	}
-	dp[0] = num[0];
-	for (int i = 0; i < n; i++) {
-		dp[i] = max(num[i], dp[i - 1] + num[i]);
-	}
-	int ans = -2147000000;
-	for (int i = 0; i < n; i++) {
 
-		if (dp[i] > ans) ans = dp[i];
-	}
-	printf("%d", ans);
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    cin >> n;
+    long long ans = LLONG_MIN;
+    long long cur = 0;
+
+    for (int i = 0; i < n; i++) {
+        long long x;
+        cin >> x;
+        if (i == 0) {
+            cur = x;
+        } else {
+            cur = max(x, cur + x);
+        }
+        ans = max(ans, cur);
+    }
+
+    cout << ans << "\n";
+    return 0;
 }
