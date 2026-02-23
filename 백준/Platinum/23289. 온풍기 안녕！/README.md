@@ -4,11 +4,15 @@
 
 ### 성능 요약
 
-메모리: 34444 KB, 시간: 364 ms
+메모리: 2164 KB, 시간: 0 ms
 
 ### 분류
 
 구현, 시뮬레이션
+
+### 제출 일자
+
+2026년 2월 24일 08:57:22
 
 ### 문제 설명
 
@@ -26,13 +30,13 @@
 
 <p>집에 있는 모든 온풍기에서 바람이 한 번 나오는 과정을 설명하면 다음과 같다.</p>
 
-<p style="text-align: center;"><img alt="" src="" style="width: 393px; height: 350px;"></p>
+<p style="text-align: center;"><img alt="" src="https://upload.acmicpc.net/52ba4824-7167-4f5b-a6b2-e3c9a6b48b6b/-/preview/" style="width: 393px; height: 350px;"></p>
 
 <p style="text-align: center;"><그림 1></p>
 
 <p><그림 1>은 크기가 7×8인 집에 온풍기가 (3, 1)에 설치되어 있는 상황이다. 온풍기는 바람이 나오는 방향이 있는데, 그 방향은 오른쪽, 왼쪽, 위, 아래 중 하나이다. 온풍기에서 따뜻한 바람이 한 번 나오면, 다음과 같은 영역의 온도가 칸에 적힌 값만큼 증가하게 된다. 아래 그림은 오른쪽 방향으로 바람이 나온 예시이며, 온풍기에서 바람이 나오는 방향에 따라 <그림 2>를 회전시켜서 해당하는 방향으로 바람이 나왔을 때 증가하는 온도를 구할 수 있다.</p>
 
-<p style="text-align: center;"><img alt="" src="" style="width: 350px; height: 497px;"></p>
+<p style="text-align: center;"><img alt="" src="https://upload.acmicpc.net/4456ba65-2cad-480b-a5dc-014e83051f4e/-/preview/" style="width: 350px; height: 497px;"></p>
 
 <p style="text-align: center;"><그림 2></p>
 
@@ -40,7 +44,7 @@
 
 <p><그림 1>의 상태에서 온풍기 바람이 한 번 불었다면, 증가하는 온도의 양은 <그림 3>과 같다.</p>
 
-<p style="text-align: center;"><img alt="" src="" style="width: 393px; height: 350px;"></p>
+<p style="text-align: center;"><img alt="" src="https://upload.acmicpc.net/eb04f005-5e8b-4ea1-98e0-4e590185c1bd/-/preview/" style="width: 393px; height: 350px;"></p>
 
 <p style="text-align: center;"><그림 3></p>
 
@@ -48,7 +52,7 @@
 
 <p>예를 들어, (3, 4)와 (3, 5) 사이에 벽이 있는 경우 온풍기에서 바람이 한 번 나왔을 때 온도는 <그림 4>와 같이 상승한다. 벽은 빨간색으로 표시했다.</p>
 
-<p style="text-align: center;"><img alt="" src="" style="width: 393px; height: 350px;"></p>
+<p style="text-align: center;"><img alt="" src="https://upload.acmicpc.net/ea4e6a0c-5184-4ef8-93a9-9b6f9ad89bee/-/preview/" style="width: 393px; height: 350px;"></p>
 
 <p style="text-align: center;"><그림 4></p>
 
@@ -59,8 +63,8 @@
 <table class="table table-bordered td-center">
 	<tbody>
 		<tr>
-			<td><img alt="" src="" style="width: 393px; height: 350px;"></td>
-			<td><img alt="" src="" style="width: 393px; height: 350px;"></td>
+			<td><img alt="" src="https://upload.acmicpc.net/668c276c-867f-47b1-8a2c-14978cefe477/-/preview/" style="width: 393px; height: 350px;"></td>
+			<td><img alt="" src="https://upload.acmicpc.net/4cc2c9c0-a868-4ad3-aa1d-fbca37363dac/-/preview/" style="width: 393px; height: 350px;"></td>
 		</tr>
 		<tr>
 			<td><그림 5></td>
@@ -76,8 +80,8 @@
 <table class="table table-bordered td-center">
 	<tbody>
 		<tr>
-			<td><img alt="" src="" style="width: 393px; height: 350px;"></td>
-			<td><img alt="" src="" style="width: 393px; height: 350px;"></td>
+			<td><img alt="" src="https://upload.acmicpc.net/504c9f6c-ac7c-46de-bfb7-321de68b0c93/-/preview/" style="width: 393px; height: 350px;"></td>
+			<td><img alt="" src="https://upload.acmicpc.net/a2067daf-e089-4ec3-8347-3587aed19026/-/preview/" style="width: 393px; height: 350px;"></td>
 		</tr>
 		<tr>
 			<td><그림 7></td>
@@ -96,11 +100,11 @@
 
 <p style="text-align: center;">(1, 1)에서 (1, 2)와 (1, 3)으로 공기가 섞인다.</p>
 
-<p style="text-align: center;"><img alt="" src="" style="height: 112px; width: 300px;"></p>
+<p style="text-align: center;"><img alt="" src="https://upload.acmicpc.net/4a5c2637-54c5-4eb5-a8ee-a01e30552c2e/-/crop/1002x374/0,435/-/preview/" style="height: 112px; width: 300px;"></p>
 
 <p style="text-align: center;">(2, 2)와 (3, 2) 사이에 벽이 있기 때문에, (3, 2)는 온도가 그대로 유지된다.</p>
 
-<p style="text-align: center;"><img alt="" src="" style="height: 112px; width: 300px;"></p>
+<p style="text-align: center;"><img alt="" src="https://upload.acmicpc.net/4a5c2637-54c5-4eb5-a8ee-a01e30552c2e/-/crop/1002x374/0,874/-/preview/" style="height: 112px; width: 300px;"></p>
 
 <p style="text-align: center;">모든 칸에 대해서 동시에 온도의 조절이 발생한다.</p>
 
@@ -109,8 +113,8 @@
 <table class="table table-bordered td-center">
 	<tbody>
 		<tr>
-			<td><img alt="" src="" style="width: 390px; height: 350px;"></td>
-			<td><img alt="" src="" style="width: 390px; height: 350px;"></td>
+			<td><img alt="" src="https://upload.acmicpc.net/4ec03451-238c-48a6-86b4-24b06fe1b74f/-/preview/" style="width: 390px; height: 350px;"></td>
+			<td><img alt="" src="https://upload.acmicpc.net/847f8d3b-d4a1-49ec-a515-7a8716b32b8d/-/preview/" style="width: 390px; height: 350px;"></td>
 		</tr>
 		<tr>
 			<td><그림 9></td>
