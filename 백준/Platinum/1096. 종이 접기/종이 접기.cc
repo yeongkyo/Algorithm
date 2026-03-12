@@ -1,78 +1,94 @@
 #include <iostream>
+#include <vector>
+#include <algorithm>
 #include <set>
+#include <queue>
+
 using namespace std;
+typedef vector<int> Pile;
+typedef vector<Pile> State;
 
-set<int> s1, s2;
+State normalize(State s) {
+    for (auto& p : s) sort(p.begin(), p.end());
+    State rev = s;
+    reverse(rev.begin(), rev.end());
+    return (rev < s) ? rev : s;
+}
 
-int now[12][12];
-int board[12][12];
+vector<Pile> get_all_piles(int L) {
+    State initial;
+    for (int i = 0; i < L; ++i) initial.push_back({i});
 
-void f(int d, int n, int type) {
-    if (type == 0)
-        for (int i = 0; i < n; ++i)
-            s1.insert(now[d][i]);
-    else
-        for (int i = 0; i < n; ++i)
-            s2.insert(now[d][i]);
+    set<State> seen;
+    set<Pile> unique_piles;
+    queue<State> q;
 
-    for (int i = 1; i < n; ++i) {
-        for (int j = 0; j < n; ++j)
-            now[d + 1][j] = 0;
+    State start = normalize(initial);
+    seen.insert(start);
+    q.push(start);
 
-        for (int j = i; j < n; ++j)
-            now[d + 1][j - i] |= now[d][j];
+    while (!q.empty()) {
+        State curr = q.front();
+        q.pop();
 
-        for (int j = i - 1; j >= 0; --j)
-            now[d + 1][i - 1 - j] |= now[d][j];
+        for (const auto& p : curr) unique_piles.insert(p);
 
-        f(d + 1, max(i, n - i), type);
+        int n = curr.size();
+        for (int k = 1; k < n; ++k) {
+            int next_n = max(k, n - k);
+            State next_s(next_n);
+            for (int i = 0; i < next_n; ++i) {
+                int left = k - 1 - i;
+                int right = k + i;
+                if (left >= 0) {
+                    for (int v : curr[left]) next_s[i].push_back(v);
+                }
+                if (right < n) {
+                    for (int v : curr[right]) next_s[i].push_back(v);
+                }
+            }
+            State norm_next = normalize(next_s);
+            if (seen.find(norm_next) == seen.end()) {
+                seen.insert(norm_next);
+                q.push(norm_next);
+            }
+        }
     }
+    return vector<Pile>(unique_piles.begin(), unique_piles.end());
 }
 
 int main() {
-    ios::sync_with_stdio(0);
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
 
-    cin.tie(0);
+    int N, M;
+    if (!(cin >> N >> M)) return 0;
 
-    int n, m, ans = -10000;
-    
-    cin >> n >> m;
-
-    for (int i = 0; i < n; ++i)
-        now[0][i] = (1 << i);
-
-    f(0, n, 0);
-
-    for (int i = 0; i < m; ++i)
-        now[0][i] = (1 << i);
-
-    f(0, m, 1);
-
-    for (int i = 0; i < n; ++i)
-        for (int j = 0; j < m; ++j)
-            cin >> board[i][j];
-
-    for (int a : s1) {
-        int num[12] = {};
-
-        for (int i = 0; i < n; ++i) {
-            if (a & (1 << i)) {
-                for (int j = 0; j < m; ++j) {
-                    num[j] += board[i][j];
-                }
-            }
-        }
-        for (int b : s2) {
-            int loc = 0;
-
-            for (int i = 0; i < m; ++i) {
-                if (b & (1 << i))
-                    loc += num[i];
-            }
-            
-            ans = max(ans, loc);
+    vector<vector<int>> grid(N, vector<int>(M));
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < M; ++j) {
+            cin >> grid[i][j];
         }
     }
 
-    cout << ans;
+    vector<Pile> row_sets = get_all_piles(N);
+    vector<Pile> col_sets = get_all_piles(M);
+
+    long long max_sum = -2e18;
+
+    for (const auto& rs : row_sets) {
+        for (const auto& cs : col_sets) {
+            long long current_sum = 0;
+            for (int r : rs) {
+                for (int c : cs) {
+                    current_sum += grid[r][c];
+                }
+            }
+            if (current_sum > max_sum) max_sum = current_sum;
+        }
+    }
+
+    cout << max_sum << endl;
+
+    return 0;
 }
