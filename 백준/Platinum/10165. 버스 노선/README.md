@@ -4,11 +4,15 @@
 
 ### 성능 요약
 
-메모리: 190204 KB, 시간: 1588 ms
+메모리: 25272 KB, 시간: 200 ms
 
 ### 분류
 
 그리디 알고리즘, 정렬, 스위핑
+
+### 제출 일자
+
+2026년 3월 13일 08:31:36
 
 ### 문제 설명
 
@@ -18,7 +22,7 @@
 
 <p style="text-align: center;">[0, 4], [2, 6], [5, 0], [7, 9], [9, 4]</p>
 
-<p style="text-align: center;"><img alt="" src="" style="width: 269px; height: 258px;"></p>
+<p style="text-align: center;"><img alt="" src="https://upload.acmicpc.net/e7832911-1721-4bd6-a15b-026521866be7/-/preview/" style="width: 269px; height: 258px;"></p>
 
 <p>위 그림에서 버스 노선 ①은 ⑤에 포함되고, 버스 노선 ④는 ③에 포함된다. 버스 노선 ②, ③, ⑤를 포함하는 노선은 없다. 따라서 취소되는 버스 노선은 ①과 ④이다.</p>
 
