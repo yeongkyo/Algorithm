@@ -56,7 +56,9 @@ void solve_identical_rows() {
         
         long long S_C = 0;
         for (int j = 0; j < M; ++j) S_C += s[j] * C[0][j];
-        long long X = S_C / (M - N);
+        
+        // 치명적인 오타 수정: M - N 이 아닌 N - M 으로 나누어야 정확한 보정값 도출
+        long long X = S_C / (N - M);
         
         vector<long long> candR(N, X);
         vector<long long> candC(M);
@@ -177,6 +179,7 @@ int main() {
         return 0;
     }
 
+    // 1. D 행렬 계산 및 0이 아닌 첫 번째 요소 탐색
     bool all_zero = true;
     int i0 = -1, j0 = -1;
     long long D_i0_j0 = 0;
@@ -194,6 +197,7 @@ int main() {
         if (!all_zero) break;
     }
 
+    // 2. 특수 케이스: 모든 요소가 0일 때 (DP 처리)
     if (all_zero) {
         bool identical_rows = true;
         for(int i=1; i<N; ++i) {
@@ -217,6 +221,7 @@ int main() {
             return 0;
         }
     } 
+    // 3. 일반 케이스: O(NM) 대수적 유일해 검증
     else {
         long long c0_options[2] = { C[0][0], -C[0][0] };
         long long cj0_options[2] = { C[0][j0], -C[0][j0] };
@@ -236,6 +241,7 @@ int main() {
                 vector<long long> candR(N), candC(M);
                 candC[0] = c0;
                 
+                // 모든 R_i 확정
                 for (int i = 0; i < N; ++i) {
                     long long num = C[i][0]*C[i][0] + C[0][j0]*C[0][j0] - C[i][j0]*C[i][j0] - C[0][0]*C[0][0];
                     if (num % (2 * (cj0 - c0)) != 0) { possible = false; break; }
@@ -243,6 +249,7 @@ int main() {
                 }
                 if (!possible) continue;
                 
+                // 모든 C_j 확정
                 for (int j = 0; j < M; ++j) {
                     long long num = C[i0][0]*C[i0][0] + C[0][j]*C[0][j] - C[i0][j]*C[i0][j] - C[0][0]*C[0][0];
                     if (num % (2 * r_i0) != 0) { possible = false; break; }
@@ -250,6 +257,7 @@ int main() {
                 }
                 if (!possible) continue;
                 
+                // 모순 검증
                 for (int i = 0; i < N; ++i) {
                     for (int j = 0; j < M; ++j) {
                         if (abs(candR[i] - candC[j]) != C[i][j]) {
