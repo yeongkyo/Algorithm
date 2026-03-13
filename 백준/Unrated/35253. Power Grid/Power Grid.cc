@@ -22,11 +22,8 @@ void solve_1_M() {
         int val = C[0][i] % (M - 1);
         for (int rem = 0; rem < M - 1; ++rem) {
             if (dp[i][rem]) {
-                dp[i + 1][rem] = true;
-                pick[i + 1][rem] = false;
-                int nxt = (rem + val) % (M - 1);
-                dp[i + 1][nxt] = true;
-                pick[i + 1][nxt] = true;
+                dp[i + 1][rem] = true; pick[i + 1][rem] = false;
+                dp[i + 1][(rem + val) % (M - 1)] = true; pick[i + 1][(rem + val) % (M - 1)] = true;
             }
         }
     }
@@ -46,11 +43,9 @@ void solve_1_M() {
             curr = (curr - (C[0][i - 1] % (M - 1)) + (M - 1)) % (M - 1);
         }
     }
-    
     long long sum_sC = 0;
     for (int j = 0; j < M; ++j) sum_sC += s[j] * C[0][j];
     long long X = sum_sC / (1 - M);
-    
     for (int j = 0; j < M; ++j) cout << s[j] * C[0][j] + X << (j == M - 1 ? "" : " ");
     cout << "\n";
 }
@@ -67,11 +62,8 @@ void solve_N_1() {
         int val = C[i][0] % (N - 1);
         for (int rem = 0; rem < N - 1; ++rem) {
             if (dp[i][rem]) {
-                dp[i + 1][rem] = true;
-                pick[i + 1][rem] = false;
-                int nxt = (rem + val) % (N - 1);
-                dp[i + 1][nxt] = true;
-                pick[i + 1][nxt] = true;
+                dp[i + 1][rem] = true; pick[i + 1][rem] = false;
+                dp[i + 1][(rem + val) % (N - 1)] = true; pick[i + 1][(rem + val) % (N - 1)] = true;
             }
         }
     }
@@ -91,18 +83,106 @@ void solve_N_1() {
             curr = (curr - (C[i - 1][0] % (N - 1)) + (N - 1)) % (N - 1);
         }
     }
-    
     long long sum_sC = 0;
     for (int i = 0; i < N; ++i) sum_sC += s[i] * C[i][0];
     long long X = sum_sC / (1 - N);
-    
     for (int i = 0; i < N; ++i) cout << s[i] * C[i][0] + X << "\n";
 }
 
-struct CompAssignment {
-    long long delta;
-    vector<int> choices;
+struct MacroState {
+    long long base_delta;
+    vector<long long> free_deltas;
+    vector<pair<int, int>> base_assign;
+    vector<pair<int, int>> free_vars;
 };
+
+struct Transition {
+    int prev_r;
+    int ms_idx;
+    vector<bool> free_choices;
+};
+
+struct TransitionExact {
+    long long prev_r;
+    int ms_idx;
+    vector<bool> free_choices;
+};
+
+int V;
+vector<vector<long long>> cand;
+vector<vector<int>> incompatible[2000];
+int assign_arr[2000];
+int invalid_count[2000][2];
+vector<MacroState> current_comp_states;
+
+bool assign_val(int u, int a, vector<int>& trail) {
+    assign_arr[u] = a;
+    trail.push_back(u);
+    for (int enc : incompatible[u][a]) {
+        int v = enc / 2, b = enc % 2;
+        invalid_count[v][b]++;
+        if (assign_arr[v] == -1 && invalid_count[v][0] > 0 && invalid_count[v][1] > 0) return false;
+    }
+    for (int enc : incompatible[u][a]) {
+        int v = enc / 2;
+        if (assign_arr[v] == -1) {
+            if (invalid_count[v][0] > 0) {
+                if (!assign_val(v, 1, trail)) return false;
+            } else if (invalid_count[v][1] > 0) {
+                if (!assign_val(v, 0, trail)) return false;
+            }
+        }
+    }
+    return true;
+}
+
+void backtrack_comp(const vector<int>& unassigned) {
+    int branch_var = -1;
+    for (int u : unassigned) {
+        if (assign_arr[u] != -1) continue;
+        bool has_neighbor = false;
+        for (int a = 0; a < 2; ++a) {
+            if (invalid_count[u][a] > 0) continue;
+            for (int enc : incompatible[u][a]) {
+                if (assign_arr[enc / 2] == -1) { has_neighbor = true; break; }
+            }
+            if (has_neighbor) break;
+        }
+        if (has_neighbor) { branch_var = u; break; }
+    }
+    
+    if (branch_var == -1) {
+        MacroState state; state.base_delta = 0;
+        for (int u : unassigned) {
+            if (assign_arr[u] != -1) {
+                long long val = cand[u][assign_arr[u]];
+                state.base_delta += (u < N - 1) ? -val : val;
+                state.base_assign.push_back({u, assign_arr[u]});
+            } else {
+                long long d0 = (u < N - 1) ? -cand[u][0] : cand[u][0];
+                long long d1 = (u < N - 1) ? -cand[u][1] : cand[u][1];
+                state.base_delta += d0;
+                state.free_deltas.push_back(d1 - d0);
+                state.base_assign.push_back({u, 0});
+                state.free_vars.push_back({u, 1});
+            }
+        }
+        current_comp_states.push_back(state);
+        return;
+    }
+    
+    for (int a = 0; a < 2; ++a) {
+        if (invalid_count[branch_var][a] == 0) {
+            vector<int> trail;
+            if (assign_val(branch_var, a, trail)) backtrack_comp(unassigned);
+            for (int v : trail) {
+                int val = assign_arr[v];
+                assign_arr[v] = -1;
+                for (int enc : incompatible[v][val]) invalid_count[enc / 2][enc % 2]--;
+            }
+        }
+    }
+}
 
 int main() {
     ios_base::sync_with_stdio(false);
@@ -117,214 +197,207 @@ int main() {
     if (N == 1) { solve_1_M(); return 0; }
     if (M == 1) { solve_N_1(); return 0; }
     
-    int V = (N - 1) + (M - 1);
-    vector<vector<long long>> cand(V);
-    
+    V = (N - 1) + (M - 1);
+    cand.resize(V);
     for (int i = 1; i < N; ++i) {
         cand[i - 1].push_back(C[0][0] - C[i][0]);
-        if (C[i][0] != 0) cand[i - 1].push_back(C[0][0] + C[i][0]);
+        cand[i - 1].push_back(C[0][0] + C[i][0]);
     }
     for (int j = 1; j < M; ++j) {
         cand[N - 1 + j - 1].push_back(-C[0][j]);
-        if (C[0][j] != 0) cand[N - 1 + j - 1].push_back(C[0][j]);
+        cand[N - 1 + j - 1].push_back(C[0][j]);
     }
     
-    vector<vector<bool>> valid(V);
-    for (int i = 0; i < V; ++i) {
-        for (int opt = 0; opt < cand[i].size(); ++opt) valid[i].push_back(true);
-    }
+    for (int i = 0; i < V; ++i) incompatible[i].resize(2);
     
-    // 1. 호 일관성(Arc Consistency) 적용: 절대 불가능한 선택지 제거
-    bool changed = true;
-    while (changed) {
-        changed = false;
-        for (int i = 1; i < N; ++i) {
-            int u = i - 1;
-            for (int a = 0; a < cand[u].size(); ++a) {
-                if (!valid[u][a]) continue;
-                for (int j = 1; j < M; ++j) {
-                    int v = N - 1 + j - 1;
-                    bool match = false;
-                    for (int b = 0; b < cand[v].size(); ++b) {
-                        if (valid[v][b] && abs(cand[v][b] - cand[u][a]) == C[i][j]) { match = true; break; }
-                    }
-                    if (!match) { valid[u][a] = false; changed = true; break; }
-                }
-            }
-        }
-        for (int j = 1; j < M; ++j) {
-            int v = N - 1 + j - 1;
-            for (int b = 0; b < cand[v].size(); ++b) {
-                if (!valid[v][b]) continue;
-                for (int i = 1; i < N; ++i) {
-                    int u = i - 1;
-                    bool match = false;
-                    for (int a = 0; a < cand[u].size(); ++a) {
-                        if (valid[u][a] && abs(cand[v][b] - cand[u][a]) == C[i][j]) { match = true; break; }
-                    }
-                    if (!match) { valid[v][b] = false; changed = true; break; }
-                }
-            }
-        }
-    }
-    
-    // 2. 종속성 그래프 구축 (선택을 강제하는 관계)
-    vector<vector<int>> adj(V);
     for (int i = 1; i < N; ++i) {
         int u = i - 1;
         for (int j = 1; j < M; ++j) {
             int v = N - 1 + j - 1;
-            bool dependent = false;
-            
-            for (int a = 0; a < cand[u].size(); ++a) {
-                if (!valid[u][a]) continue;
-                int count = 0;
-                for (int b = 0; b < cand[v].size(); ++b) {
-                    if (valid[v][b] && abs(cand[v][b] - cand[u][a]) == C[i][j]) count++;
-                }
-                if (count == 1) dependent = true;
-            }
-            
-            for (int b = 0; b < cand[v].size(); ++b) {
-                if (!valid[v][b]) continue;
-                int count = 0;
-                for (int a = 0; a < cand[u].size(); ++a) {
-                    if (valid[u][a] && abs(cand[v][b] - cand[u][a]) == C[i][j]) count++;
-                }
-                if (count == 1) dependent = true;
-            }
-            
-            if (dependent) {
-                adj[u].push_back(v);
-                adj[v].push_back(u);
-            }
-        }
-    }
-    
-    // 3. 진정한 의미의 독립 컴포넌트 추출
-    vector<vector<int>> comps;
-    vector<bool> vis(V, false);
-    for (int i = 0; i < V; ++i) {
-        if (!vis[i]) {
-            vector<int> comp;
-            queue<int> q;
-            q.push(i); vis[i] = true;
-            while (!q.empty()) {
-                int curr = q.front(); q.pop();
-                comp.push_back(curr);
-                for (int nxt : adj[curr]) {
-                    if (!vis[nxt]) { vis[nxt] = true; q.push(nxt); }
-                }
-            }
-            comps.push_back(comp);
-        }
-    }
-    
-    // 4. 각 컴포넌트별 백트래킹으로 모든 유효한 선택지 수집
-    vector<vector<CompAssignment>> comp_valid_assigns(comps.size());
-    for (int c_idx = 0; c_idx < comps.size(); ++c_idx) {
-        vector<int> current_choices;
-        
-        auto backtrack = [&](auto& self, int var_idx) -> void {
-            if (var_idx == comps[c_idx].size()) {
-                long long sR = 0, sC = 0;
-                for (int i = 0; i < comps[c_idx].size(); ++i) {
-                    int u = comps[c_idx][i];
-                    if (u < N - 1) sR += cand[u][current_choices[i]];
-                    else sC += cand[u][current_choices[i]];
-                }
-                comp_valid_assigns[c_idx].push_back({sC - sR, current_choices});
-                return;
-            }
-            int u = comps[c_idx][var_idx];
-            for (int opt = 0; opt < cand[u].size(); ++opt) {
-                if (!valid[u][opt]) continue;
-                bool ok = true;
-                for (int i = 0; i < var_idx; ++i) {
-                    int v = comps[c_idx][i];
-                    if (u < N - 1 && v >= N - 1) {
-                        if (abs(cand[v][current_choices[i]] - cand[u][opt]) != C[u + 1][v - (N - 1) + 1]) { ok = false; break; }
-                    } else if (u >= N - 1 && v < N - 1) {
-                        if (abs(cand[u][opt] - cand[v][current_choices[i]]) != C[v + 1][u - (N - 1) + 1]) { ok = false; break; }
+            for (int a = 0; a < 2; ++a) {
+                for (int b = 0; b < 2; ++b) {
+                    if (abs(cand[v][b] - cand[u][a]) != C[i][j]) {
+                        incompatible[u][a].push_back(v * 2 + b);
+                        incompatible[v][b].push_back(u * 2 + a);
                     }
                 }
-                if (ok) {
-                    current_choices.push_back(opt);
-                    self(self, var_idx + 1);
-                    current_choices.pop_back();
-                }
             }
-        };
-        backtrack(backtrack, 0);
+        }
     }
     
-    // 5. 배낭 문제(DP)를 활용한 최적 조합 구성
-    long long current_diff = C[0][0]; 
-    vector<int> final_choices(V);
+    fill(assign_arr, assign_arr + V, -1);
+    bool initial_valid[2000][2];
+    for (int i = 0; i < V; ++i) { initial_valid[i][0] = true; initial_valid[i][1] = true; }
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (int u = 0; u < V; ++u) {
+            for (int a = 0; a < 2; ++a) {
+                if (!initial_valid[u][a]) continue;
+                for (int v = 0; v < V; ++v) {
+                    if (u == v) continue;
+                    if ((u < N - 1 && v >= N - 1) || (u >= N - 1 && v < N - 1)) {
+                        bool can_match = false;
+                        for (int b = 0; b < 2; ++b) {
+                            if (initial_valid[v][b]) {
+                                bool incompat = false;
+                                for (int enc : incompatible[u][a]) { if (enc == v * 2 + b) incompat = true; }
+                                if (!incompat) can_match = true;
+                            }
+                        }
+                        if (!can_match) { initial_valid[u][a] = false; changed = true; break; }
+                    }
+                }
+            }
+        }
+    }
+    
+    for (int u = 0; u < V; ++u) {
+        if (!initial_valid[u][0]) { vector<int> t; assign_val(u, 1, t); }
+        else if (!initial_valid[u][1]) { vector<int> t; assign_val(u, 0, t); }
+    }
+    
+    vector<vector<MacroState>> all_comp_states;
+    vector<bool> vis(V, false);
+    for (int i = 0; i < V; ++i) {
+        if (vis[i] || assign_arr[i] != -1) continue;
+        vector<int> comp; queue<int> q;
+        q.push(i); vis[i] = true;
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            comp.push_back(u);
+            for (int a = 0; a < 2; ++a) {
+                if (invalid_count[u][a] > 0) continue;
+                for (int enc : incompatible[u][a]) {
+                    int v = enc / 2;
+                    if (!vis[v] && assign_arr[v] == -1) { vis[v] = true; q.push(v); }
+                }
+            }
+        }
+        current_comp_states.clear();
+        backtrack_comp(comp);
+        all_comp_states.push_back(current_comp_states);
+    }
+    
+    long long global_base_sumR = 0, global_base_sumC = C[0][0];
+    vector<int> final_assign(V, -1);
+    for (int i = 0; i < V; ++i) {
+        if (assign_arr[i] != -1) {
+            final_assign[i] = assign_arr[i];
+            if (i < N - 1) global_base_sumR += cand[i][assign_arr[i]];
+            else global_base_sumC += cand[i][assign_arr[i]];
+        }
+    }
+    
+    long long start_delta = global_base_sumC - global_base_sumR;
     
     if (N != M) {
         int mod = abs(N - M);
-        vector<vector<bool>> dp(comps.size() + 1, vector<bool>(mod, false));
-        vector<vector<int>> parent_choice(comps.size() + 1, vector<int>(mod, -1));
+        vector<vector<Transition>> dp_hist(all_comp_states.size() + 1, vector<Transition>(mod, {-1, -1, {}}));
+        int start_mod = ((start_delta % mod) + mod) % mod;
+        dp_hist[0][start_mod].prev_r = -2;
         
-        int start_val = ((current_diff % mod) + mod) % mod;
-        dp[0][start_val] = true;
-        
-        for (size_t i = 0; i < comps.size(); ++i) {
-            for (int r = 0; r < mod; ++r) {
-                if (!dp[i][r]) continue;
-                for (size_t k = 0; k < comp_valid_assigns[i].size(); ++k) {
-                    long long d = comp_valid_assigns[i][k].delta;
-                    int nxt_r = ((r + d) % mod + mod) % mod;
-                    dp[i + 1][nxt_r] = true;
-                    parent_choice[i + 1][nxt_r] = k;
+        for (size_t c = 0; c < all_comp_states.size(); ++c) {
+            for (int ms_idx = 0; ms_idx < all_comp_states[c].size(); ++ms_idx) {
+                auto& ms = all_comp_states[c][ms_idx];
+                int K = ms.free_deltas.size();
+                vector<vector<int>> track_choice(K + 1, vector<int>(mod, -1));
+                vector<vector<int>> track_prev(K + 1, vector<int>(mod, -1));
+                
+                for (int r = 0; r < mod; ++r) {
+                    if (dp_hist[c][r].prev_r != -1) {
+                        int start_r = ((r + ms.base_delta) % mod + mod) % mod;
+                        track_prev[0][start_r] = r;
+                    }
+                }
+                for (int k = 0; k < K; ++k) {
+                    long long d = ((ms.free_deltas[k] % mod) + mod) % mod;
+                    for (int r = 0; r < mod; ++r) {
+                        if (track_prev[k][r] != -1) {
+                            track_prev[k+1][r] = r; track_choice[k+1][r] = 0;
+                        }
+                    }
+                    for (int r = 0; r < mod; ++r) {
+                        if (track_prev[k][r] != -1) {
+                            int nxt_r = (r + d) % mod;
+                            track_prev[k+1][nxt_r] = r; track_choice[k+1][nxt_r] = 1;
+                        }
+                    }
+                }
+                for (int r = 0; r < mod; ++r) {
+                    if (track_prev[K][r] != -1 && dp_hist[c+1][r].prev_r == -1) {
+                        Transition t; t.ms_idx = ms_idx; t.free_choices.resize(K);
+                        int curr = r;
+                        for (int k = K; k > 0; --k) {
+                            t.free_choices[k-1] = track_choice[k][curr];
+                            curr = track_prev[k][curr];
+                        }
+                        t.prev_r = track_prev[0][curr];
+                        dp_hist[c+1][r] = t;
+                    }
                 }
             }
         }
-        
-        int curr_r = 0;
-        for (int i = comps.size(); i > 0; --i) {
-            int k = parent_choice[i][curr_r];
-            auto& assign = comp_valid_assigns[i - 1][k];
-            for (size_t j = 0; j < comps[i - 1].size(); ++j) {
-                final_choices[comps[i - 1][j]] = assign.choices[j];
+        int curr = 0;
+        for (int c = all_comp_states.size(); c > 0; --c) {
+            auto& t = dp_hist[c][curr];
+            auto& ms = all_comp_states[c - 1][t.ms_idx];
+            for (auto& p : ms.base_assign) final_assign[p.first] = p.second;
+            for (size_t k = 0; k < t.free_choices.size(); ++k) {
+                if (t.free_choices[k]) final_assign[ms.free_vars[k].first] = ms.free_vars[k].second;
             }
-            curr_r = ((curr_r - assign.delta) % mod + mod) % mod;
+            curr = t.prev_r;
         }
     } else {
-        vector<vector<pair<long long, int>>> dp(comps.size() + 1);
-        dp[0].push_back({current_diff, -1});
+        vector<unordered_map<long long, TransitionExact>> dp_hist(all_comp_states.size() + 1);
+        dp_hist[0][start_delta] = {-2LL, -1, {}};
         
-        for (size_t i = 0; i < comps.size(); ++i) {
-            unordered_map<long long, int> next_dp;
-            for (auto& state : dp[i]) {
-                for (size_t k = 0; k < comp_valid_assigns[i].size(); ++k) {
-                    long long nxt_val = state.first + comp_valid_assigns[i][k].delta;
-                    next_dp[nxt_val] = k;
+        for (size_t c = 0; c < all_comp_states.size(); ++c) {
+            for (int ms_idx = 0; ms_idx < all_comp_states[c].size(); ++ms_idx) {
+                auto& ms = all_comp_states[c][ms_idx];
+                int K = ms.free_deltas.size();
+                unordered_map<long long, long long> track_prev[K + 1];
+                unordered_map<long long, int> track_choice[K + 1];
+                
+                for (auto& kv : dp_hist[c]) track_prev[0][kv.first + ms.base_delta] = kv.first;
+                
+                for (int k = 0; k < K; ++k) {
+                    long long d = ms.free_deltas[k];
+                    for (auto& kv : track_prev[k]) {
+                        track_prev[k+1][kv.first] = kv.first; track_choice[k+1][kv.first] = 0;
+                        track_prev[k+1][kv.first + d] = kv.first; track_choice[k+1][kv.first + d] = 1;
+                    }
+                }
+                for (auto& kv : track_prev[K]) {
+                    if (dp_hist[c+1].find(kv.first) == dp_hist[c+1].end()) {
+                        TransitionExact t; t.ms_idx = ms_idx; t.free_choices.resize(K);
+                        long long curr = kv.first;
+                        for (int k = K; k > 0; --k) {
+                            t.free_choices[k-1] = track_choice[k][curr];
+                            curr = track_prev[k][curr];
+                        }
+                        t.prev_r = track_prev[0][curr];
+                        dp_hist[c+1][kv.first] = t;
+                    }
                 }
             }
-            for (auto& kv : next_dp) dp[i + 1].push_back({kv.first, kv.second});
         }
-        
-        long long curr_val = 0;
-        for (int i = comps.size(); i > 0; --i) {
-            int k = -1;
-            for (auto& state : dp[i]) {
-                if (state.first == curr_val) { k = state.second; break; }
+        long long curr = 0;
+        for (int c = all_comp_states.size(); c > 0; --c) {
+            auto& t = dp_hist[c][curr];
+            auto& ms = all_comp_states[c - 1][t.ms_idx];
+            for (auto& p : ms.base_assign) final_assign[p.first] = p.second;
+            for (size_t k = 0; k < t.free_choices.size(); ++k) {
+                if (t.free_choices[k]) final_assign[ms.free_vars[k].first] = ms.free_vars[k].second;
             }
-            auto& assign = comp_valid_assigns[i - 1][k];
-            for (size_t j = 0; j < comps[i - 1].size(); ++j) {
-                final_choices[comps[i - 1][j]] = assign.choices[j];
-            }
-            curr_val -= assign.delta;
+            curr = t.prev_r;
         }
     }
     
-    // 6. 결과 복원 및 출력
     vector<long long> R(N), C_arr(M);
     R[0] = 0; C_arr[0] = C[0][0];
-    for (int i = 1; i < N; ++i) R[i] = cand[i - 1][final_choices[i - 1]];
-    for (int j = 1; j < M; ++j) C_arr[j] = cand[N - 1 + j - 1][final_choices[N - 1 + j - 1]];
+    for (int i = 1; i < N; ++i) R[i] = cand[i - 1][final_assign[i - 1]];
+    for (int j = 1; j < M; ++j) C_arr[j] = cand[N - 1 + j - 1][final_assign[N - 1 + j - 1]];
     
     long long sumR = 0, sumC = 0;
     for (long long x : R) sumR += x;
