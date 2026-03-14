@@ -134,7 +134,8 @@ void solve() {
             Q_k[k] = b[k] * (pX[k] - pY[k] + MOD) % MOD;
         }
 
-        for (int D = d + 1; D <= n + q; ++D) {
+        // 핵심 수정 사항: d + 1 이 아닌 d + q + 1 부터 검사해야 올바른 S의 허용 차수를 반영함
+        for (int D = d + q + 1; D <= n + q; ++D) {
             long long val = 0;
             for (int k = 1; k <= min(D, q); ++k) {
                 int M = D - k;
