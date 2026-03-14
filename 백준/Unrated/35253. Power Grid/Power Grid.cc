@@ -11,7 +11,7 @@ long long C[1005][1005];
 void print_grid(const vector<long long>& candR, const vector<long long>& candC) {
     vector<vector<long long>> A(N, vector<long long>(M, 0));
     long long sum_C_except_last = 0;
-    for(int j=0; j<M-1; ++j) sum_C_except_last += candC[j];
+    for(int j = 0; j < M - 1; ++j) sum_C_except_last += candC[j];
     
     for(int i = 0; i < N - 1; ++i) A[i][M - 1] = candR[i];
     for(int j = 0; j < M - 1; ++j) A[N - 1][j] = candC[j];
@@ -26,11 +26,11 @@ void print_grid(const vector<long long>& candR, const vector<long long>& candC) 
     exit(0);
 }
 
-void solve_identical_rows() {
+bool solve_identical_rows() {
     if (N != M) {
         int K = abs(N - M);
         vector<vector<int>> prev_r(M + 1, vector<int>(K, -1));
-        vector<vector<int>> choice(M + 1, vector<int>(K, -1));
+        vector<vector<int>> choice(M + 1, vector<int>(K, 0));
         prev_r[0][0] = 0;
         
         for (int j = 0; j < M; ++j) {
@@ -41,12 +41,16 @@ void solve_identical_rows() {
                     prev_r[j + 1][nxt1] = r;
                     choice[j + 1][nxt1] = 1;
                     
-                    int nxt2 = (r - val + K) % K;
+                    int nxt2 = ((r - val) % K + K) % K;
                     prev_r[j + 1][nxt2] = r;
                     choice[j + 1][nxt2] = -1;
                 }
             }
         }
+        
+        // DP 결과 목표치(0)에 도달 불가능하면 false 리턴 (Silent Fail 방지)
+        if (prev_r[M][0] == -1) return false;
+        
         int curr = 0; 
         vector<int> s(M);
         for (int j = M; j > 0; --j) {
@@ -57,7 +61,7 @@ void solve_identical_rows() {
         long long S_C = 0;
         for (int j = 0; j < M; ++j) S_C += s[j] * C[0][j];
         
-        // 치명적인 오타 수정: M - N 이 아닌 N - M 으로 나누어야 정확한 보정값 도출
+        // 올바른 보정값 계산식
         long long X = S_C / (N - M);
         
         vector<long long> candR(N, X);
@@ -65,10 +69,11 @@ void solve_identical_rows() {
         for (int j = 0; j < M; ++j) candC[j] = s[j] * C[0][j] + X;
         
         print_grid(candR, candC);
+        return true;
     } else {
         long long maxS = 0;
         for (int j = 0; j < M; ++j) maxS += C[0][j];
-        if (maxS % 2 != 0) return; 
+        if (maxS % 2 != 0) return false; 
         long long target = maxS / 2;
         vector<int> dp(target + 1, -1);
         dp[0] = 0;
@@ -79,6 +84,8 @@ void solve_identical_rows() {
                 }
             }
         }
+        if (dp[target] == -1) return false;
+        
         vector<int> s(M, -1);
         long long curr = target;
         while (curr > 0) {
@@ -92,14 +99,15 @@ void solve_identical_rows() {
         for (int j = 0; j < M; ++j) candC[j] = s[j] * C[0][j];
         
         print_grid(candR, candC);
+        return true;
     }
 }
 
-void solve_identical_cols() {
+bool solve_identical_cols() {
     if (N != M) {
         int K = abs(N - M);
         vector<vector<int>> prev_r(N + 1, vector<int>(K, -1));
-        vector<vector<int>> choice(N + 1, vector<int>(K, -1));
+        vector<vector<int>> choice(N + 1, vector<int>(K, 0));
         prev_r[0][0] = 0;
         
         for (int i = 0; i < N; ++i) {
@@ -110,12 +118,16 @@ void solve_identical_cols() {
                     prev_r[i + 1][nxt1] = r;
                     choice[i + 1][nxt1] = 1;
                     
-                    int nxt2 = (r - val + K) % K;
+                    int nxt2 = ((r - val) % K + K) % K;
                     prev_r[i + 1][nxt2] = r;
                     choice[i + 1][nxt2] = -1;
                 }
             }
         }
+        
+        // DP 실패 시 빠른 반환
+        if (prev_r[N][0] == -1) return false;
+        
         int curr = 0;
         vector<int> s(N);
         for (int i = N; i > 0; --i) {
@@ -132,10 +144,11 @@ void solve_identical_cols() {
         vector<long long> candC(M, X);
         
         print_grid(candR, candC);
+        return true;
     } else {
         long long maxS = 0;
         for (int i = 0; i < N; ++i) maxS += C[i][0];
-        if (maxS % 2 != 0) return;
+        if (maxS % 2 != 0) return false;
         long long target = maxS / 2;
         vector<int> dp(target + 1, -1);
         dp[0] = 0;
@@ -146,6 +159,8 @@ void solve_identical_cols() {
                 }
             }
         }
+        if (dp[target] == -1) return false;
+        
         vector<int> s(N, -1);
         long long curr = target;
         while (curr > 0) {
@@ -159,6 +174,7 @@ void solve_identical_cols() {
         vector<long long> candC(M, 0);
         
         print_grid(candR, candC);
+        return true;
     }
 }
 
@@ -197,29 +213,34 @@ int main() {
         if (!all_zero) break;
     }
 
-    // 2. 특수 케이스: 모든 요소가 0일 때 (DP 처리)
+    // 2. 특수 케이스: 모든 요소가 0일 때
     if (all_zero) {
+        bool solved = false;
         bool identical_rows = true;
-        for(int i=1; i<N; ++i) {
-            for(int j=0; j<M; ++j) {
+        for(int i = 1; i < N; ++i) {
+            for(int j = 0; j < M; ++j) {
                 if(C[i][j] != C[0][j]) identical_rows = false;
             }
         }
+        
+        // 행 기준 먼저 시도해보고
         if (identical_rows) {
-            solve_identical_rows();
-            return 0;
+            if (solve_identical_rows()) solved = true;
         }
         
-        bool identical_cols = true;
-        for(int i=0; i<N; ++i) {
-            for(int j=1; j<M; ++j) {
-                if(C[i][j] != C[i][0]) identical_cols = false;
+        // 안 되면 열 기준으로 폴백(Fallback) 진행
+        if (!solved) {
+            bool identical_cols = true;
+            for(int i = 0; i < N; ++i) {
+                for(int j = 1; j < M; ++j) {
+                    if(C[i][j] != C[i][0]) identical_cols = false;
+                }
+            }
+            if (identical_cols) {
+                solve_identical_cols();
             }
         }
-        if (identical_cols) {
-            solve_identical_cols();
-            return 0;
-        }
+        return 0;
     } 
     // 3. 일반 케이스: O(NM) 대수적 유일해 검증
     else {
@@ -241,7 +262,6 @@ int main() {
                 vector<long long> candR(N), candC(M);
                 candC[0] = c0;
                 
-                // 모든 R_i 확정
                 for (int i = 0; i < N; ++i) {
                     long long num = C[i][0]*C[i][0] + C[0][j0]*C[0][j0] - C[i][j0]*C[i][j0] - C[0][0]*C[0][0];
                     if (num % (2 * (cj0 - c0)) != 0) { possible = false; break; }
@@ -249,7 +269,6 @@ int main() {
                 }
                 if (!possible) continue;
                 
-                // 모든 C_j 확정
                 for (int j = 0; j < M; ++j) {
                     long long num = C[i0][0]*C[i0][0] + C[0][j]*C[0][j] - C[i0][j]*C[i0][j] - C[0][0]*C[0][0];
                     if (num % (2 * r_i0) != 0) { possible = false; break; }
@@ -257,7 +276,6 @@ int main() {
                 }
                 if (!possible) continue;
                 
-                // 모순 검증
                 for (int i = 0; i < N; ++i) {
                     for (int j = 0; j < M; ++j) {
                         if (abs(candR[i] - candC[j]) != C[i][j]) {
@@ -268,7 +286,6 @@ int main() {
                 }
                 if (!possible) continue;
                 
-                // 보정값 X 계산
                 long long sumR = 0, sumC = 0;
                 for (long long x : candR) sumR += x;
                 for (long long x : candC) sumC += x;
