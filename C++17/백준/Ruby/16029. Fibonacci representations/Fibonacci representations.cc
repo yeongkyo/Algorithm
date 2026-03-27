@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
-#include <random>
+#include <set>
+#include <algorithm>
 
 using namespace std;
 
@@ -20,145 +21,107 @@ struct Matrix {
     }
     Matrix operator*(const Matrix& other) const {
         Matrix res;
-        res.mat[0][0] = (mat[0][0] * other.mat[0][0] + mat[0][1] * other.mat[1][0]) % MOD;
-        res.mat[0][1] = (mat[0][0] * other.mat[0][1] + mat[0][1] * other.mat[1][1]) % MOD;
-        res.mat[1][0] = (mat[1][0] * other.mat[0][0] + mat[1][1] * other.mat[1][0]) % MOD;
-        res.mat[1][1] = (mat[1][0] * other.mat[0][1] + mat[1][1] * other.mat[1][1]) % MOD;
+        long long a00 = mat[0][0], a01 = mat[0][1];
+        long long a10 = mat[1][0], a11 = mat[1][1];
+        long long b00 = other.mat[0][0], b01 = other.mat[0][1];
+        long long b10 = other.mat[1][0], b11 = other.mat[1][1];
+        
+        res.mat[0][0] = (a00 * b00 + a01 * b10) % MOD;
+        res.mat[0][1] = (a00 * b01 + a01 * b11) % MOD;
+        res.mat[1][0] = (a10 * b00 + a11 * b10) % MOD;
+        res.mat[1][1] = (a10 * b01 + a11 * b11) % MOD;
         return res;
     }
 };
 
 struct Node {
-    int val;
-    unsigned int pri;
-    int ls, rs;
+    bool active;
     int min_val, max_val;
     Matrix mat;
-} tree[400005];
+};
 
-int root = 0, node_cnt = 0;
-int free_list[400005], free_cnt = 0;
-mt19937 rng(1337);
-
-int new_node(int val) {
-    int u = free_cnt > 0 ? free_list[--free_cnt] : ++node_cnt;
-    tree[u].val = val;
-    tree[u].pri = rng();
-    tree[u].ls = tree[u].rs = 0;
-    tree[u].min_val = tree[u].max_val = val;
-    tree[u].mat = Matrix();
-    return u;
-}
+vector<Node> tree;
+vector<int> vals;
 
 void push_up(int u) {
-    int ls = tree[u].ls;
-    int rs = tree[u].rs;
-    
-    tree[u].min_val = ls ? tree[ls].min_val : tree[u].val;
-    tree[u].max_val = rs ? tree[rs].max_val : tree[u].val;
-    
-    Matrix res; 
-    if (ls) {
-        res = tree[ls].mat;
-        res = Matrix(tree[u].val - tree[ls].max_val) * res;
-    }
-    if (rs) {
-        Matrix right_part = tree[rs].mat;
-        right_part = right_part * Matrix(tree[rs].min_val - tree[u].val);
-        res = right_part * res;
-    }
-    tree[u].mat = res;
-}
-
-void split(int u, int val, int& x, int& y) {
-    if (!u) {
-        x = y = 0;
+    int lc = u << 1, rc = u << 1 | 1;
+    if (!tree[lc].active && !tree[rc].active) {
+        tree[u].active = false;
         return;
     }
-    if (tree[u].val <= val) {
-        x = u;
-        split(tree[u].rs, val, tree[u].rs, y);
-    } else {
-        y = u;
-        split(tree[u].ls, val, x, tree[u].ls);
+    if (!tree[lc].active) {
+        tree[u] = tree[rc];
+        return;
     }
+    if (!tree[rc].active) {
+        tree[u] = tree[lc];
+        return;
+    }
+    
+    tree[u].active = true;
+    tree[u].min_val = tree[lc].min_val;
+    tree[u].max_val = tree[rc].max_val;
+    
+    int gap = tree[rc].min_val - tree[lc].max_val;
+    tree[u].mat = tree[rc].mat * Matrix(gap) * tree[lc].mat;
+}
+
+void build(int u, int l, int r) {
+    tree[u].active = false;
+    if (l == r) {
+        tree[u].min_val = tree[u].max_val = vals[l];
+        tree[u].mat = Matrix();
+        return;
+    }
+    int mid = l + (r - l) / 2;
+    build(u << 1, l, mid);
+    build(u << 1 | 1, mid + 1, r);
+}
+
+void update(int u, int l, int r, int idx, bool val) {
+    if (l == r) {
+        tree[u].active = val;
+        return;
+    }
+    int mid = l + (r - l) / 2;
+    if (idx <= mid) update(u << 1, l, mid, idx, val);
+    else update(u << 1 | 1, mid + 1, r, idx, val);
     push_up(u);
 }
 
-int merge(int x, int y) {
-    if (!x || !y) return x ? x : y;
-    if (tree[x].pri > tree[y].pri) {
-        tree[x].rs = merge(tree[x].rs, y);
-        push_up(x);
-        return x;
-    } else {
-        tree[y].ls = merge(x, tree[y].ls);
-        push_up(y);
-        return y;
-    }
-}
-
-void insert_treap(int val) {
-    int x, y;
-    split(root, val, x, y);
-    root = merge(merge(x, new_node(val)), y);
-}
-
-void collect_free(int u) {
-    if (!u) return;
-    free_list[free_cnt++] = u;
-    collect_free(tree[u].ls);
-    collect_free(tree[u].rs);
-}
-
-void erase_treap(int val) {
-    int x, y, z;
-    split(root, val - 1, x, y);
-    split(y, val, y, z);
-    collect_free(y);
-    root = merge(x, z);
-}
-
-bool contains(int val) {
-    int u = root;
-    while (u) {
-        if (tree[u].val == val) return true;
-        if (val < tree[u].val) u = tree[u].ls;
-        else u = tree[u].rs;
-    }
-    return false;
-}
-
-void add(int x) {
-    if (x <= 0) return;
-    if (contains(x)) {
-        erase_treap(x);
-        add(x + 1);
-        if (x == 1) ;
-        else if (x == 2) add(1);
-        else add(x - 2);
-        return;
-    }
-    if (contains(x + 1)) {
-        erase_treap(x + 1);
-        add(x + 2);
-        return;
-    }
-    if (contains(x - 1)) {
-        erase_treap(x - 1);
-        add(x + 1);
-        return;
-    }
-    insert_treap(x);
-}
-
 long long get_ans() {
-    if (!root) return 0;
-    Matrix total = tree[root].mat;
-    Matrix first_gap(tree[root].min_val);
+    if (!tree[1].active) return 0;
+    Matrix total = tree[1].mat;
+    Matrix first_gap(tree[1].min_val);
     total = total * first_gap;
-    long long ans = (total.mat[0][0] + total.mat[1][0]) % MOD;
-    return ans;
+    return (total.mat[0][0] + total.mat[1][0]) % MOD;
+}
+
+void sim_add(int x, set<int>& S, int current_query, vector<vector<pair<int, int>>>& ops_per_query) {
+    if (x <= 0) return;
+    if (S.count(x)) {
+        S.erase(x);
+        ops_per_query[current_query].push_back({x, -1});
+        sim_add(x + 1, S, current_query, ops_per_query);
+        if (x == 1) {}
+        else if (x == 2) sim_add(1, S, current_query, ops_per_query);
+        else sim_add(x - 2, S, current_query, ops_per_query);
+        return;
+    }
+    if (S.count(x + 1)) {
+        S.erase(x + 1);
+        ops_per_query[current_query].push_back({x + 1, -1});
+        sim_add(x + 2, S, current_query, ops_per_query);
+        return;
+    }
+    if (S.count(x - 1)) {
+        S.erase(x - 1);
+        ops_per_query[current_query].push_back({x - 1, -1});
+        sim_add(x + 1, S, current_query, ops_per_query);
+        return;
+    }
+    S.insert(x);
+    ops_per_query[current_query].push_back({x, 1});
 }
 
 int main() {
@@ -167,11 +130,38 @@ int main() {
     
     int n;
     if (!(cin >> n)) return 0;
+    
+    vector<vector<pair<int, int>>> ops_per_query(n);
+    set<int> S;
+    
     for (int i = 0; i < n; ++i) {
         int a;
         cin >> a;
-        add(a);
+        sim_add(a, S, i, ops_per_query);
+    }
+    
+    for (int i = 0; i < n; ++i) {
+        for (auto& op : ops_per_query[i]) {
+            vals.push_back(op.first);
+        }
+    }
+    
+    sort(vals.begin(), vals.end());
+    vals.erase(unique(vals.begin(), vals.end()), vals.end());
+    
+    int M = vals.size();
+    if (M == 0) return 0;
+    
+    tree.resize(4 * M);
+    build(1, 0, M - 1);
+    
+    for (int i = 0; i < n; ++i) {
+        for (auto& op : ops_per_query[i]) {
+            int idx = lower_bound(vals.begin(), vals.end(), op.first) - vals.begin();
+            update(1, 0, M - 1, idx, op.second == 1);
+        }
         cout << get_ans() << "\n";
     }
+    
     return 0;
 }
