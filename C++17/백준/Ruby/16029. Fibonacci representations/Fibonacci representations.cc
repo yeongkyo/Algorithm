@@ -1,12 +1,10 @@
 #include <iostream>
-#include <vector>
 #include <set>
-#include <algorithm>
+#include <random>
 
 using namespace std;
 
 const int MOD = 1000000007;
-const int INF = 2000000007;
 
 struct Matrix {
     int mat[2][2];
@@ -33,25 +31,86 @@ struct Matrix {
     }
 };
 
+mt19937 rng(1337);
+
 struct Node {
+    int key;
+    int priority;
     int min_val, max_val;
     Matrix M;
+    Node *l, *r;
+    Node(int k) : key(k), priority(rng()), min_val(k), max_val(k), M(), l(NULL), r(NULL) {}
 };
 
+typedef Node* pNode;
+
+void update(pNode t) {
+    if (!t) return;
+    t->min_val = t->key;
+    t->max_val = t->key;
+    t->M = Matrix();
+
+    if (t->l) {
+        int d = t->key - t->l->max_val;
+        Matrix T(1, 1, (d - 1) / 2, d / 2);
+        t->M = t->M * T * t->l->M;
+        t->min_val = t->l->min_val;
+    }
+    if (t->r) {
+        int d = t->r->min_val - t->max_val;
+        Matrix T(1, 1, (d - 1) / 2, d / 2);
+        t->M = t->r->M * T * t->M;
+        t->max_val = t->r->max_val;
+    }
+}
+
+void split(pNode t, int key, pNode &l, pNode &r) {
+    if (!t) { l = r = NULL; return; }
+    if (t->key < key) {
+        split(t->r, key, t->r, r);
+        l = t;
+    } else {
+        split(t->l, key, l, t->l);
+        r = t;
+    }
+    update(t);
+}
+
+void merge(pNode &t, pNode l, pNode r) {
+    if (!l || !r) { t = l ? l : r; return; }
+    if (l->priority > r->priority) {
+        merge(l->r, l->r, r);
+        t = l;
+    } else {
+        merge(r->l, l, r->l);
+        t = r;
+    }
+    update(t);
+}
+
+void insert(pNode &t, int key) {
+    pNode l, r;
+    split(t, key, l, r);
+    pNode mid = new Node(key);
+    merge(t, l, mid);
+    merge(t, t, r);
+}
+
+void erase(pNode &t, int key) {
+    pNode l, mid, r;
+    split(t, key, l, r);
+    split(r, key + 1, mid, r);
+    if (mid) delete mid;
+    merge(t, l, r);
+}
+
+pNode root = NULL;
 set<int> S;
-struct Op {
-    int type;
-    int v;
-};
-
-vector<Op> ops;
-vector<int> all_vals;
-vector<Node> tree;
 
 void add(int v) {
     if (S.count(v)) {
         S.erase(v);
-        ops.push_back({0, v});
+        erase(root, v);
         if (v == 1) {
             add(2);
         } else if (v == 2) {
@@ -65,109 +124,40 @@ void add(int v) {
     }
     if (S.count(v - 1)) {
         S.erase(v - 1);
-        ops.push_back({0, v - 1});
+        erase(root, v - 1);
         add(v + 1);
         return;
     }
     if (S.count(v + 1)) {
         S.erase(v + 1);
-        ops.push_back({0, v + 1});
+        erase(root, v + 1);
         add(v + 2);
         return;
     }
     S.insert(v);
-    ops.push_back({1, v});
-    all_vals.push_back(v);
-}
-
-void build(int node, int l, int r) {
-    tree[node].min_val = INF;
-    tree[node].max_val = -INF;
-    tree[node].M = Matrix();
-    if (l == r) return;
-    int mid = l + (r - l) / 2;
-    build(node * 2, l, mid);
-    build(node * 2 + 1, mid + 1, r);
-}
-
-void update(int node, int l, int r, int idx, int type, int val) {
-    if (l == r) {
-        if (type == 1) {
-            tree[node].min_val = val;
-            tree[node].max_val = val;
-            tree[node].M = Matrix();
-        } else {
-            tree[node].min_val = INF;
-            tree[node].max_val = -INF;
-            tree[node].M = Matrix();
-        }
-        return;
-    }
-    int mid = l + (r - l) / 2;
-    if (idx <= mid) update(node * 2, l, mid, idx, type, val);
-    else update(node * 2 + 1, mid + 1, r, idx, type, val);
-
-    int ls = node * 2, rs = node * 2 + 1;
-    if (tree[ls].min_val == INF && tree[rs].min_val == INF) {
-        tree[node].min_val = INF;
-        tree[node].max_val = -INF;
-        tree[node].M = Matrix();
-    } else if (tree[ls].min_val == INF) {
-        tree[node] = tree[rs];
-    } else if (tree[rs].min_val == INF) {
-        tree[node] = tree[ls];
-    } else {
-        tree[node].min_val = tree[ls].min_val;
-        tree[node].max_val = tree[rs].max_val;
-        int d = tree[rs].min_val - tree[ls].max_val;
-        Matrix T(1, 1, (d - 1) / 2, d / 2);
-        tree[node].M = tree[rs].M * T * tree[ls].M;
-    }
+    insert(root, v);
 }
 
 int main() {
     ios_base::sync_with_stdio(false);
     cin.tie(NULL);
-    
+
     int n;
     if (!(cin >> n)) return 0;
-    
-    ops.reserve(1000000);
-    all_vals.reserve(1000000);
-    
+
     for (int i = 0; i < n; i++) {
         int a;
         cin >> a;
         add(a);
-        ops.push_back({2, 0});
-    }
 
-    sort(all_vals.begin(), all_vals.end());
-    all_vals.erase(unique(all_vals.begin(), all_vals.end()), all_vals.end());
-
-    int U = all_vals.size();
-    if (U == 0) {
-        for (int i = 0; i < n; i++) cout << 0 << "\n";
-        return 0;
-    }
-    
-    tree.resize(4 * U + 1);
-    build(1, 1, U);
-
-    for (auto& op : ops) {
-        if (op.type == 2) {
-            if (tree[1].min_val == INF) {
-                cout << 0 << "\n";
-            } else {
-                int c1 = tree[1].min_val;
-                Matrix T(1, 1, (c1 - 1) / 2, c1 / 2);
-                Matrix M_final = tree[1].M * T;
-                int ans = (M_final.mat[0][0] + M_final.mat[1][0]) % MOD;
-                cout << ans << "\n";
-            }
+        if (!root) {
+            cout << 0 << "\n";
         } else {
-            int idx = lower_bound(all_vals.begin(), all_vals.end(), op.v) - all_vals.begin() + 1;
-            update(1, 1, U, idx, op.type, op.v);
+            int c1 = root->min_val;
+            Matrix T(1, 1, (c1 - 1) / 2, c1 / 2);
+            Matrix M_final = root->M * T;
+            int ans = (M_final.mat[0][0] + M_final.mat[1][0]) % MOD;
+            cout << ans << "\n";
         }
     }
     return 0;
