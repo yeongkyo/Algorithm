@@ -1,6 +1,5 @@
 #include <iostream>
-#include <set>
-#include <random>
+#include <vector>
 
 using namespace std;
 
@@ -31,85 +30,118 @@ struct Matrix {
     }
 };
 
-mt19937 rng(1337);
+unsigned int xorshift() {
+    static unsigned int x = 123456789;
+    static unsigned int y = 362436069;
+    static unsigned int z = 521288629;
+    static unsigned int w = 88675123;
+    unsigned int t = x ^ (x << 11);
+    x = y; y = z; z = w;
+    return w = (w ^ (w >> 19)) ^ (t ^ (t >> 8));
+}
 
 struct Node {
     int key;
-    int priority;
+    unsigned int priority;
     int min_val, max_val;
     Matrix M;
-    Node *l, *r;
-    Node(int k) : key(k), priority(rng()), min_val(k), max_val(k), M(), l(NULL), r(NULL) {}
+    int l, r;
 };
 
-typedef Node* pNode;
+const int MAX_NODES = 4000005;
+Node pool[MAX_NODES];
+int node_cnt = 0;
+int trash[MAX_NODES];
+int trash_cnt = 0;
 
-void update(pNode t) {
+int allocNode(int key) {
+    int id = trash_cnt > 0 ? trash[--trash_cnt] : ++node_cnt;
+    pool[id].key = key;
+    pool[id].priority = xorshift();
+    pool[id].min_val = pool[id].max_val = key;
+    pool[id].M = Matrix();
+    pool[id].l = pool[id].r = 0;
+    return id;
+}
+
+void freeNode(int id) {
+    if (id) trash[trash_cnt++] = id;
+}
+
+void update(int t) {
     if (!t) return;
-    t->min_val = t->key;
-    t->max_val = t->key;
-    t->M = Matrix();
+    pool[t].min_val = pool[t].key;
+    pool[t].max_val = pool[t].key;
+    pool[t].M = Matrix();
 
-    if (t->l) {
-        int d = t->key - t->l->max_val;
+    int l = pool[t].l;
+    int r = pool[t].r;
+
+    if (l) {
+        int d = pool[t].key - pool[l].max_val;
         Matrix T(1, 1, (d - 1) / 2, d / 2);
-        t->M = t->M * T * t->l->M;
-        t->min_val = t->l->min_val;
+        pool[t].M = pool[t].M * T * pool[l].M;
+        pool[t].min_val = pool[l].min_val;
     }
-    if (t->r) {
-        int d = t->r->min_val - t->max_val;
+    if (r) {
+        int d = pool[r].min_val - pool[t].max_val;
         Matrix T(1, 1, (d - 1) / 2, d / 2);
-        t->M = t->r->M * T * t->M;
-        t->max_val = t->r->max_val;
+        pool[t].M = pool[r].M * T * pool[t].M;
+        pool[t].max_val = pool[r].max_val;
     }
 }
 
-void split(pNode t, int key, pNode &l, pNode &r) {
-    if (!t) { l = r = NULL; return; }
-    if (t->key < key) {
-        split(t->r, key, t->r, r);
+void split(int t, int key, int &l, int &r) {
+    if (!t) { l = r = 0; return; }
+    if (pool[t].key < key) {
+        split(pool[t].r, key, pool[t].r, r);
         l = t;
     } else {
-        split(t->l, key, l, t->l);
+        split(pool[t].l, key, l, pool[t].l);
         r = t;
     }
     update(t);
 }
 
-void merge(pNode &t, pNode l, pNode r) {
+void merge(int &t, int l, int r) {
     if (!l || !r) { t = l ? l : r; return; }
-    if (l->priority > r->priority) {
-        merge(l->r, l->r, r);
+    if (pool[l].priority > pool[r].priority) {
+        merge(pool[l].r, pool[l].r, r);
         t = l;
     } else {
-        merge(r->l, l, r->l);
+        merge(pool[r].l, l, pool[r].l);
         t = r;
     }
     update(t);
 }
 
-void insert(pNode &t, int key) {
-    pNode l, r;
+bool find(int t, int key) {
+    if (!t) return false;
+    if (pool[t].key == key) return true;
+    if (pool[t].key < key) return find(pool[t].r, key);
+    return find(pool[t].l, key);
+}
+
+void insert(int &t, int key) {
+    int l, r;
     split(t, key, l, r);
-    pNode mid = new Node(key);
+    int mid = allocNode(key);
     merge(t, l, mid);
     merge(t, t, r);
 }
 
-void erase(pNode &t, int key) {
-    pNode l, mid, r;
+void erase(int &t, int key) {
+    int l, mid, r;
     split(t, key, l, r);
     split(r, key + 1, mid, r);
-    if (mid) delete mid;
+    freeNode(mid);
     merge(t, l, r);
 }
 
-pNode root = NULL;
-set<int> S;
+int root = 0;
 
 void add(int v) {
-    if (S.count(v)) {
-        S.erase(v);
+    if (find(root, v)) {
         erase(root, v);
         if (v == 1) {
             add(2);
@@ -122,19 +154,16 @@ void add(int v) {
         }
         return;
     }
-    if (S.count(v - 1)) {
-        S.erase(v - 1);
+    if (find(root, v - 1)) {
         erase(root, v - 1);
         add(v + 1);
         return;
     }
-    if (S.count(v + 1)) {
-        S.erase(v + 1);
+    if (find(root, v + 1)) {
         erase(root, v + 1);
         add(v + 2);
         return;
     }
-    S.insert(v);
     insert(root, v);
 }
 
@@ -153,9 +182,9 @@ int main() {
         if (!root) {
             cout << 0 << "\n";
         } else {
-            int c1 = root->min_val;
+            int c1 = pool[root].min_val;
             Matrix T(1, 1, (c1 - 1) / 2, c1 / 2);
-            Matrix M_final = root->M * T;
+            Matrix M_final = pool[root].M * T;
             int ans = (M_final.mat[0][0] + M_final.mat[1][0]) % MOD;
             cout << ans << "\n";
         }
