@@ -1,5 +1,4 @@
 #include <iostream>
-#include <vector>
 
 using namespace std;
 
@@ -12,21 +11,16 @@ struct Matrix {
         mat[1][0] = 0; mat[1][1] = 1;
     }
     Matrix(int a, int b, int c, int d) {
-        mat[0][0] = a % MOD; mat[0][1] = b % MOD;
-        mat[1][0] = c % MOD; mat[1][1] = d % MOD;
+        mat[0][0] = a; mat[0][1] = b;
+        mat[1][0] = c; mat[1][1] = d;
     }
     Matrix operator*(const Matrix& o) const {
-        Matrix res(0, 0, 0, 0);
-        for(int i = 0; i < 2; ++i) {
-            for(int j = 0; j < 2; ++j) {
-                long long sum = 0;
-                for(int k = 0; k < 2; ++k) {
-                    sum += 1LL * mat[i][k] * o.mat[k][j];
-                }
-                res.mat[i][j] = sum % MOD;
-            }
-        }
-        return res;
+        return Matrix(
+            (1LL * mat[0][0] * o.mat[0][0] + 1LL * mat[0][1] * o.mat[1][0]) % MOD,
+            (1LL * mat[0][0] * o.mat[0][1] + 1LL * mat[0][1] * o.mat[1][1]) % MOD,
+            (1LL * mat[1][0] * o.mat[0][0] + 1LL * mat[1][1] * o.mat[1][0]) % MOD,
+            (1LL * mat[1][0] * o.mat[0][1] + 1LL * mat[1][1] * o.mat[1][1]) % MOD
+        );
     }
 };
 
@@ -48,7 +42,7 @@ struct Node {
     int l, r;
 };
 
-const int MAX_NODES = 4000005;
+const int MAX_NODES = 5000005;
 Node pool[MAX_NODES];
 int node_cnt = 0;
 int trash[MAX_NODES];
@@ -70,25 +64,24 @@ void freeNode(int id) {
 
 void update(int t) {
     if (!t) return;
-    pool[t].min_val = pool[t].key;
-    pool[t].max_val = pool[t].key;
-    pool[t].M = Matrix();
-
     int l = pool[t].l;
     int r = pool[t].r;
 
+    pool[t].min_val = l ? pool[l].min_val : pool[t].key;
+    pool[t].max_val = r ? pool[r].max_val : pool[t].key;
+
+    Matrix M(1, 0, 0, 1);
     if (l) {
         int d = pool[t].key - pool[l].max_val;
         Matrix T(1, 1, (d - 1) / 2, d / 2);
-        pool[t].M = pool[t].M * T * pool[l].M;
-        pool[t].min_val = pool[l].min_val;
+        M = T * pool[l].M;
     }
     if (r) {
-        int d = pool[r].min_val - pool[t].max_val;
+        int d = pool[r].min_val - pool[t].key;
         Matrix T(1, 1, (d - 1) / 2, d / 2);
-        pool[t].M = pool[r].M * T * pool[t].M;
-        pool[t].max_val = pool[r].max_val;
+        M = pool[r].M * T * M;
     }
+    pool[t].M = M;
 }
 
 void split(int t, int key, int &l, int &r) {
@@ -116,10 +109,12 @@ void merge(int &t, int l, int r) {
 }
 
 bool find(int t, int key) {
-    if (!t) return false;
-    if (pool[t].key == key) return true;
-    if (pool[t].key < key) return find(pool[t].r, key);
-    return find(pool[t].l, key);
+    while (t) {
+        if (pool[t].key == key) return true;
+        if (pool[t].key < key) t = pool[t].r;
+        else t = pool[t].l;
+    }
+    return false;
 }
 
 void insert(int &t, int key) {
