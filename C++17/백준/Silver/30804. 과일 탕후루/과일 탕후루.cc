@@ -1,32 +1,41 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-int main() {
+int main()
+{
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
+    cout.tie(nullptr);
 
     int N;
     cin >> N;
+    vector<int> S(N);
+    for (auto &x : S)
+        cin >> x;
 
-    vector<int> a(N);
-    for (int i = 0; i < N; i++) cin >> a[i];
+    int freq[10001] = {0};
+    int unique_cnt = 0;
+    int left = 0;
+    int max_len = 0;
 
-    int cnt[10] = {0};
-    int kind = 0, left = 0, ans = 0;
+    for (int right = 0; right < N; right++)
+    {
+        if (freq[S[right]] == 0)
+        {
+            unique_cnt++;
+        }
+        freq[S[right]]++;
 
-    for (int right = 0; right < N; right++) {
-        if (cnt[a[right]] == 0) kind++;
-        cnt[a[right]]++;
-
-        while (kind > 2) {
-            cnt[a[left]]--;
-            if (cnt[a[left]] == 0) kind--;
+        while (unique_cnt > 2)
+        {
+            freq[S[left]]--;
+            if (freq[S[left]] == 0)
+            {
+                unique_cnt--;
+            }
             left++;
         }
-
-        ans = max(ans, right - left + 1);
+        max_len = max(max_len, right - left + 1);
     }
-
-    cout << ans << '\n';
-    return 0;
+    cout << max_len << '\n';
 }
